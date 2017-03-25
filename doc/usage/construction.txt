@@ -1,0 +1,10 @@
+Run, in the "struct.site" folder (for example):
+	
+	struct.site> make [-w] --file=main.rcp all [&> main.rcp.log]
+
+And run it:
+	
+	struct.site> ./main.elf
+
+
+See 'main.rcp' for all possible targets.

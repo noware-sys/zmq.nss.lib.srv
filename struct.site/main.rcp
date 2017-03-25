@@ -1,0 +1,22 @@
+cxx = g++
+
+obj = main.obj
+#tool.string.obj tool.nr.obj
+out = main.elf
+
+#cxx_arg = -g -ggdb -pedantic -fpermissive -W -Wall -Wmain -Wcomment -Wconversion -Wunused-parameter -Wparentheses -std=c++14 -I. -I$(quex_path) -I$(lib_path) $(CCFLAG_ASSERTS) -L. -L/usr/local/lib -lboost_system -lboost_serialization -lboost_thread -lboost_random -lcln -fopenmp -pthread -ldl -lsqlite3 -lczmq -lzmq -lzyre
+cxx_arg = -g -ggdb -pedantic -fpermissive -W -Wall -Wmain -Wcomment -Wconversion -Wunused-parameter -Wparentheses -std=c++17 -lcln -lboost_serialization -lboost_system -lboost_thread -lsqlite3 -lczmq -lzmq -I../src
+
+all: $(out)
+$(out): $(obj)
+	$(cxx) $(cxx_arg) -o $@ $(obj);
+main.obj:
+	$(cxx) $(cxx_arg) -o main.obj -c main.cxx;
+#var.obj:
+#	$(cxx) $(cxx_arg) -o main.obj -c $(lib_path)/$(lib)/var.cxx;
+#tool.string.obj:
+#		$(cxx) $(cxx_arg) -o main.obj -c $(lib_path)/$(lib)/tool/string.cxx;
+#tool.nr.obj:
+#		$(cxx) $(cxx_arg) -o main.obj -c $(lib_path)/$(lib)/tool/nr.cxx;
+clean:
+	rm --force *.elf *.obj;

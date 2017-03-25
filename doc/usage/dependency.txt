@@ -1,0 +1,2 @@
+<noware/array> is needed:
+https://github.com/noware-system/noware.cxx
