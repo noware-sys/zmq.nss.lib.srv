@@ -4,7 +4,7 @@
 #include <string>
 #include <iostream>
 
-#include <server>
+#include <client>
 
 int main (const int argc, const char * argv [])
 {
@@ -18,13 +18,19 @@ int main (const int argc, const char * argv [])
 	
 	std::cout << "Argument count: " << argc << std::endl;
 	
-	server srv;
+	client c;
 	std::string selection;
 	
-	if (srv.start ())
-		std::cout << "Server started & running..." << std::endl;
+	if (c.start ())
+		std::cout << "Client started & running..." << std::endl;
 	else
-		std::cout << "Server startup failed (not running)..." << std::endl;
+	{
+		std::cout << "Client startup failed (not running)..." << std::endl;
+		
+		return EXIT_FAILURE;
+	}
 	
+	std::cout << "Press [Enter] to send [passwd] request > " << std::endl;
 	std::getline (std::cin, selection);
+	c.tx_passwd ();
 }

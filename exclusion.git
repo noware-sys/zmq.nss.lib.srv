@@ -1,2 +1,10 @@
 *.obj
 *.log
+
+# Custom
+known_hosts
+exclusion.cxx.git
+
+# Temporary
+src/server.hdr.php
+src/server.php
