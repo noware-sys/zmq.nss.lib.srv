@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <zmq.hpp>
+#include <noware/zmq/zhelpers.c>
 
 #include <boost/bind.hpp>
 
@@ -12,11 +13,28 @@ client::client (void)
 {
 	reception = nullptr;
 	_running = false;
+	
+	context_publisher = new zmq::context_t (1);
+	context_subscriber = new zmq::context_t (1);
+	
+	socket_publisher = new zmq::socket_t (*context_publisher, ZMQ_PUB);
+	socket_subscriber = new zmq::socket_t (*context_subscriber, ZMQ_SUB);
+	
+	socket_subscriber -> setsockopt (ZMQ_SUBSCRIBE, "", 0);
+	
+	socket_publisher -> bind ("tcp://*:2132");
+	socket_subscriber -> connect ("tcp://0.0.0.0:2131");
 }
 
 client::~client (void)
 {
 	stop ();
+	
+	delete socket_subscriber;
+	delete socket_publisher;
+	
+	delete context_subscriber;
+	delete context_publisher;
 }
 
 const bool client::transmit (const std::string & message) const
@@ -24,15 +42,17 @@ const bool client::transmit (const std::string & message) const
 	std::cout << "client::transmit()" << std::endl;
 	
 	//  Prepare our context and publisher
-	zmq::context_t context (1);
-	zmq::socket_t socket (context, ZMQ_PUB);
-	zmq::message_t zmq_message (message.length ());
+	//zmq::context_t context (1);
+	//zmq::socket_t socket (context, ZMQ_PUB);
+	zmq::message_t zmq_message (message.size ());
 	
-	socket.bind ("tcp://127.0.0.1:2131");
+	//socket_publisher -> bind ("tcp://*:2132");
 	
-	snprintf ((char *) zmq_message.data (), message.length (), "%s", message);
+	//snprintf ((char *) zmq_message.data (), strlen (message.c_str ()) + 1, "%s", message.c_str ());
+	memcpy (zmq_message.data (), message.data (), message.size ());
+	//std::cout << "client::transmit()::zmq_message==[" << static_cast <const char *> (zmq_message.data ()) << ']' << std::endl;
 	
-	if (socket.send (zmq_message) != 0)
+	if (!socket_publisher -> send (zmq_message))
 	{
 		std::cout << "client::transmit()::socket.send()==[false]" << std::endl;
 		return false;
@@ -46,23 +66,26 @@ const bool client::receive (std::string & message) const
 {
 	std::cout << "client::receive()" << std::endl;
 	
-	zmq::context_t context (1);
-	zmq::socket_t socket (context, ZMQ_SUB);
+	//zmq::context_t context (1);
+	//zmq::socket_t socket (context, ZMQ_SUB);
 	zmq::message_t zmq_message;
 	
-	socket.connect ("tcp://127.0.0.1:2132");
+	//socket.connect ("tcp://0.0.0.0:2131");
 	
 	////if (socket.setsockopt (ZMQ_SUBSCRIBE, filter, strlen (filter)); != 0)
 	//if (socket.setsockopt (ZMQ_SUBSCRIBE, filter, strlen (filter)); != 0)
 	//	return false;
+	//socket.setsockopt (ZMQ_SUBSCRIBE, "", 0);
 	
-	if (socket.recv (&zmq_message) != 0)
+	if (!socket_subscriber -> recv (&zmq_message))
 	{
 		std::cout << "client::receive()::socket.recv()==[false]" << std::endl;
 		return false;
 	}
-	message = (char *) zmq_message.data ();
 	std::cout << "client::receive()::socket.recv()==[true]" << std::endl;
+	//std::cout << "client::receive()::zmq_message==[" << static_cast <const char *> (zmq_message.data ()) << ']' << std::endl;
+	//message = static_cast <const char *> (zmq_message.data ());
+	message = std::string (static_cast <const char *> (zmq_message.data ()), zmq_message.size ());
 	std::cout << "client::receive()::message==[" << message << ']' << std::endl;
 	
 	return true;
@@ -75,7 +98,7 @@ void client::_receive (void)
 	std::string message;
 	std::string query;
 	noware::array <noware::array <>> result;
-	noware::array <noware::var, int> arguments;
+	noware::array <std::string, int> arguments;
 	
 	while (_running)
 	{
@@ -261,7 +284,7 @@ const bool client::start (void)
 	if (status ())
 		return true;
 	
-	if (!db.connect ("/root/Projects/exo.nss.lib/cfg/system-test.db"))
+	if (!db.connect ("../cfg/system.db"))
 		return false;
 	
 	if (reception == nullptr)
@@ -283,9 +306,9 @@ const bool client::tx_passwd (void) const
 		return false;
 	if (!transmit ("user"))
 		return false;
-	if (!transmit ("name"))
+	if (!transmit ("id"))
 		return false;
-	if (!transmit ("testuser"))
+	if (!transmit ("1005"))
 		return false;
 	
 	// Get the success status:
@@ -296,12 +319,12 @@ const bool client::tx_passwd (void) const
 		return false;
 	std::cout << "client::tx_passwd()::received::success==[true]" << std::endl;
 	
-	// Get the user ID (as a character pointer):
+	// Get the user ID:
 	if (!receive (message))
 		return false;
 	std::cout << "client::tx_passwd()::received::uid==[" << message << "]" << std::endl;
 	
-	// Get the primary group ID (as a character pointer):
+	// Get the primary group ID:
 	if (!receive (message))
 		return false;
 	std::cout << "client::tx_passwd()::received::gid==[" << message << "]" << std::endl;
@@ -321,7 +344,7 @@ const bool client::tx_passwd (void) const
 		return false;
 	std::cout << "client::tx_passwd()::received::shell==[" << message << "]" << std::endl;
 	
-	// Get the home:
+	// Get the home path:
 	if (!receive (message))
 		return false;
 	std::cout << "client::tx_passwd()::received::home==[" << message << "]" << std::endl;

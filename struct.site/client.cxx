@@ -21,6 +21,7 @@ int main (const int argc, const char * argv [])
 	client c;
 	std::string selection;
 	
+	/*
 	if (c.start ())
 		std::cout << "Client started & running..." << std::endl;
 	else
@@ -29,6 +30,7 @@ int main (const int argc, const char * argv [])
 		
 		return EXIT_FAILURE;
 	}
+	*/
 	
 	std::cout << "Press [Enter] to send [passwd] request > " << std::endl;
 	std::getline (std::cin, selection);

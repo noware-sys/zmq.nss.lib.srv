@@ -34,6 +34,11 @@ class client
 		
 		bool _running;
 		
+		zmq::context_t * context_publisher;
+		zmq::context_t * context_subscriber;
+		
+		zmq::socket_t * socket_publisher;
+		zmq::socket_t * socket_subscriber;
 		
 		noware::db::sqlite db;
 };
