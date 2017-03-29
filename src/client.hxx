@@ -15,11 +15,14 @@ class client
 		client (void);
 		~client (void);
 		
+		const bool fin (void);
+		const bool init (void);
+		
 		const bool stop (void);
 		const bool start (void);
 		const bool status (void) const;
 		
-		const bool transmit (const std::string &) const;
+		const bool transmit (const std::string &, const bool &/* more*/ = false) const;
 		const bool receive (std::string &) const;
 		
 		// Simulate requests of [passwd], [group], [shadow].
@@ -34,11 +37,13 @@ class client
 		
 		bool _running;
 		
-		zmq::context_t * context_publisher;
-		zmq::context_t * context_subscriber;
+		//zmq::context_t * context_publisher;
+		//zmq::context_t * context_subscriber;
+		zmq::context_t * context;
 		
-		zmq::socket_t * socket_publisher;
-		zmq::socket_t * socket_subscriber;
+		//zmq::socket_t * socket_publisher;
+		//zmq::socket_t * socket_subscriber;
+		zmq::socket_t * socket;
 		
 		noware::db::sqlite db;
 };

@@ -3,44 +3,72 @@
 #include <iostream>
 
 #include <zmq.hpp>
-#include <noware/zmq/zhelpers.c>
+//#include <zmq.h>
+//#include <zmq/zhelpers.hxx>
 
 #include <boost/bind.hpp>
+//#include <boost/date_time/posix_time/posix_time.hpp>
+//#include <boost/thread/thread.hpp> 
 
 #include "client.hxx"
 
 client::client (void)
 {
-	reception = nullptr;
-	_running = false;
-	
-	context_publisher = new zmq::context_t (1);
-	context_subscriber = new zmq::context_t (1);
-	
-	socket_publisher = new zmq::socket_t (*context_publisher, ZMQ_PUB);
-	socket_subscriber = new zmq::socket_t (*context_subscriber, ZMQ_SUB);
-	
-	socket_subscriber -> setsockopt (ZMQ_SUBSCRIBE, "", 0);
-	
-	socket_publisher -> bind ("tcp://*:2132");
-	socket_subscriber -> connect ("tcp://0.0.0.0:2131");
+	init ();
 }
 
 client::~client (void)
 {
-	stop ();
-	
-	delete socket_subscriber;
-	delete socket_publisher;
-	
-	delete context_subscriber;
-	delete context_publisher;
+	fin ();
 }
 
-const bool client::transmit (const std::string & message) const
+const bool client::init (void)
+{
+	reception = nullptr;
+	_running = false;
+	
+	//context_publisher = new zmq::context_t (1);
+	//context_subscriber = new zmq::context_t (1);
+	context = new zmq::context_t (1);
+	
+	//socket_publisher = new zmq::socket_t (*context_publisher, ZMQ_PUB);
+	//socket_subscriber = new zmq::socket_t (*context_subscriber, ZMQ_SUB);
+	socket = new zmq::socket_t (*context, ZMQ_DEALER);
+	
+	//socket_subscriber -> setsockopt (ZMQ_SUBSCRIBE, "", 0);
+	
+	//socket_publisher -> bind ("tcp://*:2132");
+	//socket_subscriber -> connect ("tcp://0.0.0.0:2131");
+	//socket -> bind ("tcp://*:2132");
+	socket -> connect ("tcp://0.0.0.0:2131");
+	
+	return true;
+}
+
+const bool client::fin (void)
+{
+	stop ();
+	
+	//delete socket_subscriber;
+	//delete socket_publisher;
+	delete socket;
+	
+	//delete context_subscriber;
+	//delete context_publisher;
+	delete context;
+	
+	return true;
+}
+
+const bool client::transmit (const std::string & message, const bool & more) const
 {
 	std::cout << "client::transmit()" << std::endl;
 	
+	//zmq::context_t * context_publisher = new zmq::context_t (1);
+	//zmq::socket_t * socket_publisher = new zmq::socket_t (*context_publisher, ZMQ_PUB);
+	//socket_publisher -> bind ("tcp://*:2132");
+	
+
 	//  Prepare our context and publisher
 	//zmq::context_t context (1);
 	//zmq::socket_t socket (context, ZMQ_PUB);
@@ -52,11 +80,18 @@ const bool client::transmit (const std::string & message) const
 	memcpy (zmq_message.data (), message.data (), message.size ());
 	//std::cout << "client::transmit()::zmq_message==[" << static_cast <const char *> (zmq_message.data ()) << ']' << std::endl;
 	
-	if (!socket_publisher -> send (zmq_message))
+	//if (!socket_publisher -> send (zmq_message))
+	if (!socket -> send (zmq_message, more ? ZMQ_SNDMORE : 0))
 	{
+		//delete socket_publisher;
+		//delete context_publisher;
+		
 		std::cout << "client::transmit()::socket.send()==[false]" << std::endl;
 		return false;
 	}
+	
+	//delete socket_publisher;
+	//delete context_publisher;
 	
 	std::cout << "client::transmit()::socket.send()==[true]" << std::endl;
 	return true;
@@ -65,6 +100,12 @@ const bool client::transmit (const std::string & message) const
 const bool client::receive (std::string & message) const
 {
 	std::cout << "client::receive()" << std::endl;
+	
+	//zmq::context_t * context_subscriber = new zmq::context_t (1);
+	//zmq::socket_t * socket_subscriber = new zmq::socket_t (*context_subscriber, ZMQ_SUB);
+	//socket_subscriber -> setsockopt (ZMQ_SUBSCRIBE, "", 0);
+	//socket_subscriber -> connect ("tcp://0.0.0.0:2131");
+	
 	
 	//zmq::context_t context (1);
 	//zmq::socket_t socket (context, ZMQ_SUB);
@@ -77,8 +118,12 @@ const bool client::receive (std::string & message) const
 	//	return false;
 	//socket.setsockopt (ZMQ_SUBSCRIBE, "", 0);
 	
-	if (!socket_subscriber -> recv (&zmq_message))
+	//if (!socket_subscriber -> recv (&zmq_message))
+	if (!socket -> recv (&zmq_message))
 	{
+		//delete socket_subscriber;
+		//delete context_subscriber;
+		
 		std::cout << "client::receive()::socket.recv()==[false]" << std::endl;
 		return false;
 	}
@@ -87,6 +132,9 @@ const bool client::receive (std::string & message) const
 	//message = static_cast <const char *> (zmq_message.data ());
 	message = std::string (static_cast <const char *> (zmq_message.data ()), zmq_message.size ());
 	std::cout << "client::receive()::message==[" << message << ']' << std::endl;
+	
+	//delete socket_subscriber;
+	//delete context_subscriber;
 	
 	return true;
 }
@@ -302,14 +350,17 @@ const bool client::tx_passwd (void) const
 	
 	
 	// Send the request (in parts):
-	if (!transmit ("get"))
+	if (!transmit ("get", true))
 		return false;
-	if (!transmit ("user"))
+	if (!transmit ("user", true))
 		return false;
-	if (!transmit ("id"))
+	if (!transmit ("id", true))
 		return false;
 	if (!transmit ("1005"))
 		return false;
+	
+	//zclock_sleep (500);
+	//boost::this_thread::sleep (boost::posix_time::milliseconds (500));
 	
 	// Get the success status:
 	if (!receive (message))
