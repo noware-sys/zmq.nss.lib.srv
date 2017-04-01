@@ -6,8 +6,8 @@
 #include <zmq.hpp>
 
 #include <boost/bind.hpp>
-//#include <boost/date_time/posix_time/posix_time.hpp>
-//#include <boost/thread/thread.hpp> 
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/thread/thread.hpp> 
 
 #include "server.hxx"
 
@@ -51,6 +51,12 @@ const bool server::fin (void)
 	
 	//delete socket_subscriber;
 	//delete socket_publisher;
+	
+	//zmq_close (socket);
+	//zmq_ctx_destroy (context);
+	
+	//boost::this_thread::sleep (boost::posix_time::milliseconds (500));
+	
 	delete socket;
 	
 	//delete context_subscriber;
@@ -129,8 +135,8 @@ void server::_receive (void)
 	noware::array <noware::array <>> result;
 	noware::array <std::string, int> arguments;
 	// Work-around
-	std::string size;
-	std::istringstream iss;
+	//std::string size;
+	//std::istringstream iss;
 	
 	while (_running)
 	{
@@ -199,9 +205,9 @@ void server::_receive (void)
 					
 					//std::cout << "server::_receive()::receive(name)::message==[id]" << std::endl;
 					
-					// We use limit here, because IDs may be non-unique,
-					// so we can get more than one.
-					query = "select uid, gid, username, 'x' as \"password\", shell, homedir, gecos from passwd where username = ? limit 1";
+					// We do not need to use limit here, because user names must be unique,
+					// so we should not get more than one user name.
+					query = "select uid, gid, username, 'x' as \"password\", shell, homedir, gecos from passwd where username = ?";
 					arguments [1] = message;
 					std::cout << "server::_receive()::arguments[1]==[" << arguments [1] << ']' << std::endl;
 					
@@ -339,8 +345,8 @@ void server::_receive (void)
 					
 					//std::cout << "server::_receive()::receive(name)::message==[id]" << std::endl;
 					
-					// We use limit here, because IDs may be non-unique,
-					// so we can get more than one.
+					// We use limit here, because user IDs may be non-unique,
+					// so we can get more than one user name.
 					query = "select uid, gid, username, 'x' as \"password\", shell, homedir, gecos from passwd where uid = ? limit 1";
 					arguments [1] = message;
 					std::cout << "server::_receive()::arguments[1]==[" << arguments [1] << ']' << std::endl;
@@ -498,9 +504,9 @@ void server::_receive (void)
 					
 					//std::cout << "server::_receive()::receive(name)::message==[id]" << std::endl;
 					
-					// We use limit here, because IDs may be non-unique,
-					// so we can get more than one.
-					query = "select id, name, 'x' as \"password\" from groups where name = ? limit 1";
+					// We do not need to use limit here, because group names must be unique,
+					// so we should not get more than one group name.
+					query = "select id, name, 'x' as \"password\" from groups where name = ?";
 					arguments [1] = message;
 					std::cout << "server::_receive()::arguments[1]==[" << arguments [1] << ']' << std::endl;
 					
@@ -599,8 +605,9 @@ void server::_receive (void)
 					//std::cout << "server::_receive()::receive(name)::message==[id]" << std::endl;
 					
 					// We use limit here, because IDs may be non-unique,
-					// so we can get more than one.
-					query = "select id, name, 'x' as \"password\" from groups where id = ? limit 1";
+					// so we can get more than one group name.
+					//query = "select id, name, 'x' as \"password\" from groups where id = ? limit 1";
+					query = "select id, name, 'x' as \"password\" from groups where id = ?";
 					arguments [1] = message;
 					std::cout << "server::_receive()::arguments[1]==[" << arguments [1] << ']' << std::endl;
 					
@@ -715,8 +722,6 @@ void server::_receive (void)
 					
 					//std::cout << "server::_receive()::receive(name)::message==[id]" << std::endl;
 					
-					// We use limit here, because IDs may be non-unique,
-					// so we can get more than one.
 					query = "select user_group.gid from user_group join passwd on user_group.uid = passwd.uid where passwd.username = ? and passwd.gid != user_group.gid";
 					arguments [1] = message;
 					std::cout << "server::_receive()::arguments[1]==[" << arguments [1] << ']' << std::endl;
@@ -747,6 +752,18 @@ void server::_receive (void)
 					}
 					else
 					{
+						// Nothing was found.
+						if (result.empty ())
+						{
+							std::cout << "server::_receive()::result.empty()==[true]" << std::endl;
+							
+							// Announce that we have not found anything by failing the request.
+							transmit ("0");
+							
+							// Abort this request.
+							continue;
+						}
+						
 						std::cout << "server::groups::_receive()::transmit(1)" << std::endl;
 						if (!transmit ("1", true))
 						{
@@ -793,8 +810,184 @@ void server::_receive (void)
 					}
 				}
 				
-				//result.clear ();
-				//arguments.clear ();
+				result.clear ();
+				arguments.clear ();
+			}
+			else if (message == "shadow")
+			{
+				if (!receive (message))
+				{
+					std::cout << "server::_receive()::rx(getter_type)==[false]" << std::endl;
+					
+					// Abort.
+					continue;
+				}
+				std::cout << "server::_receive()::rx(getter_type)==[true]" << std::endl;
+				std::cout << "server::_receive()::rx(getter_type)::message==[" << message << ']' << std::endl;
+				
+				if (message == "name")
+				{
+					if (!receive (message))
+					{
+						std::cout << "server::_receive()::receive(getter_content)==[false]" << std::endl;
+						
+						// Abort.
+						continue;
+					}
+					std::cout << "server::_receive()::receive(getter_content)==[true]" << std::endl;
+					std::cout << "server::_receive()::receive(getter_content)::message==[" << message << ']' << std::endl;
+					
+					//std::cout << "server::_receive()::receive(name)::message==[id]" << std::endl;
+					
+					// We do not need to use limit here, because user names must be unique,
+					// so we should not get more than one user name.
+					query = "select username, passwd, change, min, max, warn, inactn, expn, flag from shadow where username = ?";
+					arguments [1] = message;
+					std::cout << "server::_receive()::arguments[1]==[" << arguments [1] << ']' << std::endl;
+					
+					// Send (like a 'set' operation) the peer identity first (who to send to).
+					std::cout << "server::_receive()::transmit(identity)" << std::endl;
+					if (!transmit (identity, true))
+					{
+						std::cout << "server::_receive()::transmit(identity)==[false]" << std::endl;
+						
+						// Abort.
+						continue;
+					}
+					std::cout << "server::_receive()::transmit(identity)==[true]" << std::endl;
+					
+					if (!db.query (result, query, arguments))
+					{
+						std::cout << "server::_receive()::db.query()==[false]" << std::endl;
+						// Send the success status (failed),
+						// so the application would not continue requesting in the same session.
+						if (!transmit ("0"))
+						{
+							std::cout << "server::_receive()::transmit(0)==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+					}
+					else
+					{
+						// Nothing was found.
+						if (result.empty ())
+						{
+							std::cout << "server::_receive()::result.empty()==[true]" << std::endl;
+							
+							// Announce that we have not found anything by failing the request.
+							transmit ("0");
+							
+							// Abort this request.
+							continue;
+						}
+						
+						// Send the success status (succeeded).
+						if (!transmit ("1", true))
+						{
+							std::cout << "server::_receive()::transmit(1)==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// The order matters.
+						
+						// User Name:
+						std::cout << "server::_receive()::result[1][1](username)==[" << result [1] [1] << "]" << std::endl;
+						if (!transmit (result [1] [1], true))
+						{
+							std::cout << "server::_receive()::transmit(result[1])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Password:
+						std::cout << "server::_receive()::result[1][2](password)==[" << result [1] [2] << "]" << std::endl;
+						if (!transmit (result [1] [2], true))
+						{
+							std::cout << "server::_receive()::transmit(result[2])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Change:
+						std::cout << "server::_receive()::result[1][3](change)==[" << result [1] [3] << "]" << std::endl;
+						if (!transmit (result [1] [3], true))
+						{
+							std::cout << "server::_receive()::transmit(result[3])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Minimum:
+						std::cout << "server::_receive()::result[1][4](minimum)==[" << result [1] [4] << "]" << std::endl;
+						if (!transmit (result [1] [4], true))
+						{
+							std::cout << "server::_receive()::transmit(result[4])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Maximum:
+						std::cout << "server::_receive()::result[1][5](maximum)==[" << result [1] [5] << "]" << std::endl;
+						if (!transmit (result [1] [5], true))
+						{
+							std::cout << "server::_receive()::transmit(result[5])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Warning:
+						std::cout << "server::_receive()::result[1][6](warning)==[" << result [1] [6] << "]" << std::endl;
+						if (!transmit (result [1] [6], true))
+						{
+							std::cout << "server::_receive()::transmit(result[6])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Inactivation:
+						std::cout << "server::_receive()::result[1][7](inactivation)==[" << result [1] [7] << "]" << std::endl;
+						if (!transmit (result [1] [7], true))
+						{
+							std::cout << "server::_receive()::transmit(result[7])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Expiration:
+						std::cout << "server::_receive()::result[1][8](expiration)==[" << result [1] [8] << "]" << std::endl;
+						if (!transmit (result [1] [8], true))
+						{
+							std::cout << "server::_receive()::transmit(result[8])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+						
+						// Flag:
+						std::cout << "server::_receive()::result[1][9](flag)==[" << result [1] [9] << "]" << std::endl;
+						if (!transmit (result [1] [9]))
+						{
+							std::cout << "server::_receive()::transmit(result[9])==[false]" << std::endl;
+							
+							// Abort.
+							continue;
+						}
+					}
+				}
+				
+				result.clear ();
+				arguments.clear ();
 			}
 		}
 		
